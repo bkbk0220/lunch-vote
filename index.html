@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🍽️ 팀 점심 식당 투표</title>
+<style>
+  :root {
+    --card: #ffffff; --text: #3b2a1d; --muted: #9a8672;
+    --line: #f0e4d5; --accent: #f4581c; --accent-2: #ff8a4c;
+    --accent-soft: #fff0e6; --cell: #faf6ef;
+    --gold-1: #ffe9a8; --gold-2: #ffd75e; --gold-text: #7a5800;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 16px 60px;
+    font-family: "Pretendard Variable", Pretendard, "Segoe UI", "Malgun Gothic", sans-serif;
+    background: linear-gradient(160deg, #fff8ef 0%, #fdf1f0 55%, #f7f1ff 100%) fixed;
+    color: var(--text);
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 1.75rem; margin: 0 0 6px; letter-spacing: -.02em; }
+  .edit-title {
+    margin-left: 8px; font-size: 1.1rem; cursor: pointer;
+    opacity: .4; transition: opacity .15s;
+  }
+  .edit-title:hover { opacity: 1; }
+  .sub { color: var(--muted); font-size: .92rem; margin-bottom: 22px; }
+  .sub .live { color: #16a34a; font-weight: 700; }
+  .sub .live.off { color: #dc2626; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 20px; padding: 20px; margin-bottom: 18px;
+    box-shadow: 0 2px 6px rgba(120, 72, 20, .05), 0 12px 32px -16px rgba(120, 72, 20, .18);
+  }
+  .table-scroll { overflow-x: auto; }
+  table { border-collapse: separate; border-spacing: 5px; width: 100%; min-width: 640px; }
+  th, td { padding: 11px 13px; text-align: center; border: none; }
+  thead th {
+    background: transparent; color: var(--muted);
+    font-size: .88rem; font-weight: 700; white-space: nowrap;
+    text-transform: uppercase; letter-spacing: .02em;
+  }
+  th.rest-col { text-align: left; min-width: 150px; }
+  td { background: var(--cell); border-radius: 12px; }
+  td.rest-name {
+    text-align: left; font-weight: 700; white-space: nowrap;
+    background: #fff; border: 1px solid var(--line);
+  }
+  td.vote-cell {
+    cursor: pointer; user-select: none; font-size: 1rem;
+    transition: background .15s, box-shadow .15s, transform .1s;
+  }
+  td.vote-cell:hover { background: var(--accent-soft); }
+  td.vote-cell:empty:hover::after { content: "✔"; opacity: .3; color: var(--accent); }
+  td.vote-cell:active { transform: scale(.94); }
+  td.vote-cell.on {
+    background: linear-gradient(135deg, var(--accent-2), var(--accent));
+    color: #fff; font-weight: 800;
+    box-shadow: 0 3px 10px -3px rgba(244, 88, 28, .55);
+  }
+  td.total { font-weight: 800; white-space: nowrap; color: var(--accent); background: var(--accent-soft); }
+  tr.leader td { background: var(--gold-1); }
+  tr.leader td.rest-name { background: linear-gradient(90deg, #fff3cf, var(--gold-1)); border-color: var(--gold-2); color: var(--gold-text); }
+  tr.leader td.total { color: var(--gold-text); background: var(--gold-1); }
+  tr.leader td.vote-cell:not(.on):hover { background: #ffdf87; }
+  tr.leader td.rest-name::before { content: "👑 "; }
+
+  .forms { display: flex; gap: 14px; flex-wrap: wrap; }
+  .form-box { flex: 1 1 260px; }
+  .form-box h2 { font-size: 1rem; margin: 0 0 10px; }
+  .form-row { display: flex; gap: 8px; }
+  input[type=text], input[type=password] {
+    flex: 1; padding: 10px 14px; border: 1px solid var(--line);
+    border-radius: 12px; font-size: .95rem; outline: none;
+    background: #fffdf9; color: var(--text); transition: border-color .15s, box-shadow .15s;
+  }
+  input::placeholder { color: #c4b5a3; }
+  input:focus { border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(244, 88, 28, .14); }
+  button {
+    padding: 10px 18px; border: none; border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent-2), var(--accent));
+    color: #fff; font-size: .95rem; font-weight: 700; cursor: pointer;
+    box-shadow: 0 3px 10px -3px rgba(244, 88, 28, .5);
+    transition: transform .1s, box-shadow .15s, filter .15s;
+  }
+  button:hover { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 6px 14px -4px rgba(244, 88, 28, .55); }
+  button:active { transform: translateY(0) scale(.97); }
+  .hint { color: var(--muted); font-size: .84rem; margin-top: 14px; }
+  .hint a { color: var(--muted); }
+
+  .leader-banner {
+    display: flex; align-items: center; gap: 12px;
+    background: linear-gradient(100deg, #fff3cf, var(--gold-1) 45%, #ffde79);
+    background-size: 200% 100%;
+    animation: shimmer 5s ease-in-out infinite;
+    border: 1px solid var(--gold-2); border-radius: 16px;
+    padding: 15px 20px; margin-bottom: 18px;
+    font-size: 1.08rem; font-weight: 800; color: var(--gold-text);
+    box-shadow: 0 6px 20px -10px rgba(200, 150, 0, .5);
+  }
+  .leader-banner.empty {
+    background: var(--card); border-color: var(--line);
+    color: var(--muted); font-weight: 400; animation: none; box-shadow: none;
+  }
+  .leader-banner .crown { font-size: 1.5rem; animation: bounce 1.6s ease-in-out infinite; }
+  @keyframes shimmer {
+    0%, 100% { background-position: 0% 0; }
+    50% { background-position: 100% 0; }
+  }
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0) rotate(-8deg); }
+    50% { transform: translateY(-4px) rotate(8deg); }
+  }
+
+  .reset-btn {
+    margin-left: 10px; padding: 6px 14px; font-size: .82rem; border-radius: 999px;
+    background: #fff; color: #dc2626; border: 1px solid #f3caca;
+    box-shadow: none; font-weight: 600;
+  }
+  .reset-btn:hover { background: #fdf0f0; filter: none; transform: none; box-shadow: none; }
+
+  .del {
+    display: inline-block; margin-left: 7px; padding: 0 6px;
+    color: #d3c3b0; font-weight: 400; font-size: .9rem;
+    border-radius: 6px; cursor: pointer; transition: color .12s, background .12s;
+  }
+  .del:hover { color: #fff; background: #dc2626; }
+
+  .rlink, .rlink-edit {
+    display: inline-block; margin-left: 6px; font-size: .85rem;
+    text-decoration: none; cursor: pointer; border-radius: 6px; padding: 0 3px;
+    transition: opacity .12s, background .12s;
+  }
+  .rlink:hover { background: var(--accent-soft); }
+  .rlink-edit { opacity: .45; }
+  .rlink-edit.empty { opacity: .22; }
+  td.rest-name:hover .rlink-edit { opacity: .8; }
+  .rlink-edit:hover { opacity: 1 !important; background: var(--accent-soft); }
+
+  /* 최초 접속 설정 화면 */
+  #setup { max-width: 460px; margin: 8vh auto 0; }
+  #setup h2 { margin: 0 0 6px; font-size: 1.25rem; }
+  #setup p { color: var(--muted); font-size: .9rem; margin: 0 0 16px; }
+  #setup label { display: block; font-size: .85rem; font-weight: 700; margin: 12px 0 6px; }
+  #setup input { width: 100%; }
+  #setup button { width: 100%; margin-top: 18px; }
+  #setup .err { color: #dc2626; font-size: .85rem; margin-top: 10px; min-height: 1.2em; }
+  .busy { opacity: .55; pointer-events: none; }
+</style>
+</head>
+<body>
+
+<div id="setup" class="card" style="display:none">
+  <h2>🔑 처음 오셨네요!</h2>
+  <p>공유받은 <b>접속 토큰</b>을 한 번만 입력하면 계속 사용할 수 있어요.<br>(이 브라우저에 저장되며, 다시 물어보지 않습니다)</p>
+  <label>접속 토큰</label>
+  <input type="password" id="cfg-token" placeholder="github_pat_ 으로 시작하는 토큰">
+  <button onclick="saveConfig()">시작하기</button>
+  <div class="err" id="cfg-err"></div>
+</div>
+
+<div class="wrap" id="app" style="display:none">
+  <h1><span id="page-title">🍽️ 팀 점심 식당 투표</span><span class="edit-title" onclick="editTitle()" title="제목 수정">✏️</span></h1>
+  <div class="sub">
+    셀을 클릭하면 투표/취소됩니다. 여러 식당을 골라도 돼요.
+    <span id="live" class="live off">● 연결 중…</span>
+  </div>
+
+  <div id="leader-banner" class="leader-banner empty">아직 투표가 없습니다. 첫 표를 눌러보세요!</div>
+
+  <div class="card table-scroll">
+    <table id="vote-table">
+      <thead><tr id="head-row"></tr></thead>
+      <tbody id="body-rows"></tbody>
+    </table>
+  </div>
+
+  <div class="card forms">
+    <div class="form-box">
+      <h2>🏠 식당 추가</h2>
+      <div class="form-row">
+        <input type="text" id="new-restaurant" placeholder="식당 이름" maxlength="30">
+        <button onclick="addItem('restaurant')">추가</button>
+      </div>
+    </div>
+    <div class="form-box">
+      <h2>🙋 인원 추가</h2>
+      <div class="form-row">
+        <input type="text" id="new-member" placeholder="이름" maxlength="20">
+        <button onclick="addItem('member')">추가</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="hint">
+    현황은 몇 초 안에 모두에게 자동 반영됩니다.
+    <button class="reset-btn" onclick="resetVotes()">🗑 투표 초기화</button>
+    <a href="#" onclick="reconfigure(); return false;" style="margin-left:10px">연결 설정</a>
+  </div>
+</div>
+
+<script>
+/* ===== GitHub 저장소를 DB로 사용 =====
+ * 데이터는 저장소의 data.json 한 파일에 저장된다.
+ * 읽기: 4초 간격 폴링 (ETag 조건부 요청 — 변경 없으면 304, 요청 한도 미차감)
+ * 쓰기: 최신본을 다시 받아 변경을 적용한 뒤 PUT — sha 충돌 시 재시도
+ */
+const POLL_MS = 4000;
+const FILE_PATH = 'data.json';
+// 투표 데이터는 화면(Pages)과 분리된 전용 저장소에 저장 —
+// 공유 토큰이 유출되어도 이 저장소의 데이터만 건드릴 수 있고 화면 코드는 못 바꾼다.
+const DATA_REPO = 'bkbk0220/lunch-vote-data';
+
+let config = null;   // {token}
+let state = null;    // data.json 내용
+let sha = null;      // 현재 파일 sha
+let etag = null;
+let pollTimer = null;
+
+// ---------- 설정 ----------
+function loadConfig() {
+  try { config = JSON.parse(localStorage.getItem('lv-config')); } catch (e) { config = null; }
+}
+
+function showSetup(msg) {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('setup').style.display = 'block';
+  document.getElementById('cfg-err').textContent = msg || '';
+}
+
+async function saveConfig() {
+  const token = document.getElementById('cfg-token').value.trim();
+  const err = document.getElementById('cfg-err');
+  if (!token) { err.textContent = '토큰을 입력해 주세요.'; return; }
+  err.textContent = '확인 중…';
+  config = { token };
+  try {
+    await fetchState(true);
+    localStorage.setItem('lv-config', JSON.stringify(config));
+    startApp();
+  } catch (e) {
+    config = null;
+    err.textContent = '연결 실패: ' + e.message;
+  }
+}
+
+function reconfigure() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  showSetup('');
+}
+
+// ---------- GitHub API ----------
+function apiUrl() { return `https://api.github.com/repos/${DATA_REPO}/contents/${FILE_PATH}`; }
+
+function headers(extra) {
+  return Object.assign({
+    'Authorization': 'Bearer ' + config.token,
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+  }, extra || {});
+}
+
+function b64decode(b64) {
+  const bin = atob(b64.replace(/\s/g, ''));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+function b64encode(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
+async function fetchState(force) {
+  const h = headers();
+  if (etag && !force) h['If-None-Match'] = etag;
+  const res = await fetch(apiUrl(), { headers: h, cache: 'no-store' });
+  if (res.status === 304) return false;
+  if (res.status === 401) throw new Error('토큰이 올바르지 않거나 만료되었습니다.');
+  if (res.status === 404) throw new Error('저장소 또는 data.json을 찾을 수 없습니다.');
+  if (res.status === 403) throw new Error('요청 한도 초과 또는 권한 부족입니다.');
+  if (!res.ok) throw new Error('GitHub 응답 오류 (' + res.status + ')');
+  const body = await res.json();
+  etag = res.headers.get('ETag');
+  sha = body.sha;
+  state = JSON.parse(b64decode(body.content));
+  return true;
+}
+
+/* 변경 적용: op(state)가 true를 반환하면 커밋. sha 충돌 시 최신본에 다시 적용 후 재시도 */
+async function push(op, message) {
+  document.getElementById('app').classList.add('busy');
+  try {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      await fetchState(true);
+      if (!op(state)) { render(); return; }
+      state.version = (state.version || 0) + 1;
+      const res = await fetch(apiUrl(), {
+        method: 'PUT',
+        headers: headers({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          message: message,
+          content: b64encode(JSON.stringify(state, null, 2)),
+          sha: sha,
+        }),
+      });
+      if (res.ok) {
+        const body = await res.json();
+        sha = body.content.sha;
+        etag = null; // 다음 폴링에서 새로 받도록
+        render();
+        return;
+      }
+      if (res.status !== 409 && res.status !== 422) {
+        throw new Error('저장 실패 (' + res.status + ')');
+      }
+      // 충돌 — 다른 사람이 먼저 저장함. 최신본으로 재시도.
+    }
+    throw new Error('저장 충돌이 반복되어 실패했습니다. 다시 시도해 주세요.');
+  } catch (e) {
+    alert(e.message);
+    setLive(false);
+  } finally {
+    document.getElementById('app').classList.remove('busy');
+  }
+}
+
+// ---------- 폴링 ----------
+function setLive(ok) {
+  const live = document.getElementById('live');
+  if (ok) { live.textContent = '● 실시간 연결됨'; live.classList.remove('off'); }
+  else { live.textContent = '● 재연결 중…'; live.classList.add('off'); }
+}
+
+async function poll() {
+  if (document.hidden) return;
+  try {
+    const changed = await fetchState(false);
+    setLive(true);
+    if (changed) render();
+  } catch (e) {
+    setLive(false);
+    if (String(e.message).includes('토큰')) { reconfigure(); document.getElementById('cfg-err').textContent = e.message; }
+  }
+}
+
+function startApp() {
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  render();
+  setLive(true);
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(poll, POLL_MS);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+}
+
+// ---------- 렌더링 (기존과 동일) ----------
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function render() {
+  if (!state) return;
+  if (state.title) {
+    document.getElementById('page-title').textContent = state.title;
+    document.title = state.title;
+  }
+
+  const head = document.getElementById('head-row');
+  const body = document.getElementById('body-rows');
+
+  let h = '<th class="rest-col">구분</th>';
+  for (const m of state.members) {
+    h += `<th>${esc(m)}<span class="del" data-kind="member" data-name="${esc(m)}" title="삭제">×</span></th>`;
+  }
+  h += '<th>합계</th>';
+  head.innerHTML = h;
+
+  const counts = state.restaurants.map(r =>
+    state.members.filter(m => (state.votes[m] || []).includes(r)).length
+  );
+  const max = Math.max(0, ...counts);
+
+  const banner = document.getElementById('leader-banner');
+  if (max > 0) {
+    const leaders = state.restaurants.filter((r, i) => counts[i] === max);
+    banner.className = 'leader-banner';
+    banner.innerHTML = `<span class="crown">👑</span> 현재 1위: ${leaders.map(esc).join(', ')} (${max}표)`;
+  } else {
+    banner.className = 'leader-banner empty';
+    banner.textContent = '아직 투표가 없습니다. 첫 표를 눌러보세요!';
+  }
+
+  let rows = '';
+  state.restaurants.forEach((r, i) => {
+    const leader = max > 0 && counts[i] === max ? ' class="leader"' : '';
+    const url = (state.urls || {})[r];
+    const linkHtml = url
+      ? `<a class="rlink" href="${esc(url)}" target="_blank" rel="noopener" title="${esc(url)}">🔗</a><span class="rlink-edit" data-r="${esc(r)}" title="URL 수정/삭제">✎</span>`
+      : `<span class="rlink-edit empty" data-r="${esc(r)}" title="식당 정보 URL 첨부">🔗</span>`;
+    rows += `<tr${leader}><td class="rest-name">${esc(r)}${linkHtml}<span class="del" data-kind="restaurant" data-name="${esc(r)}" title="삭제">×</span></td>`;
+    for (const m of state.members) {
+      const on = (state.votes[m] || []).includes(r);
+      rows += `<td class="vote-cell${on ? ' on' : ''}" data-m="${esc(m)}" data-r="${esc(r)}">${on ? '✔' : ''}</td>`;
+    }
+    rows += `<td class="total">${counts[i]}표</td></tr>`;
+  });
+  body.innerHTML = rows;
+
+  body.querySelectorAll('.vote-cell').forEach(td => {
+    td.onclick = () => {
+      const m = td.dataset.m, r = td.dataset.r;
+      push(s => {
+        if (!s.members.includes(m) || !s.restaurants.includes(r)) return false;
+        const chosen = s.votes[m] = s.votes[m] || [];
+        const idx = chosen.indexOf(r);
+        if (idx >= 0) chosen.splice(idx, 1); else chosen.push(r);
+        return true;
+      }, `vote: ${m} ↔ ${r}`);
+    };
+  });
+
+  document.querySelectorAll('#vote-table .rlink-edit').forEach(el => {
+    el.onclick = e => {
+      e.stopPropagation();
+      const r = el.dataset.r;
+      const current = (state.urls || {})[r] || '';
+      const next = prompt(`"${r}" 정보 URL을 입력하세요 (http로 시작, 비우면 삭제)`, current);
+      if (next === null) return;
+      const url = next.trim();
+      if (url && !/^https?:\/\//.test(url)) { alert('http:// 또는 https:// 로 시작하는 주소만 첨부할 수 있어요.'); return; }
+      if (url === current) return;
+      push(s => {
+        if (!s.restaurants.includes(r)) return false;
+        s.urls = s.urls || {};
+        if (url) s.urls[r] = url; else delete s.urls[r];
+        return true;
+      }, `url: ${r}`);
+    };
+  });
+
+  document.querySelectorAll('#vote-table .del').forEach(el => {
+    el.onclick = e => {
+      e.stopPropagation();
+      const kind = el.dataset.kind, name = el.dataset.name;
+      const label = kind === 'restaurant' ? '식당' : '인원';
+      if (!confirm(`${label} "${name}"을(를) 삭제할까요? 관련 투표도 함께 삭제됩니다.`)) return;
+      if (kind === 'restaurant') {
+        push(s => {
+          const idx = s.restaurants.indexOf(name);
+          if (idx < 0) return false;
+          s.restaurants.splice(idx, 1);
+          if (s.urls) delete s.urls[name];
+          for (const m in s.votes) {
+            const i = s.votes[m].indexOf(name);
+            if (i >= 0) s.votes[m].splice(i, 1);
+          }
+          return true;
+        }, `delete restaurant: ${name}`);
+      } else {
+        push(s => {
+          const idx = s.members.indexOf(name);
+          if (idx < 0) return false;
+          s.members.splice(idx, 1);
+          delete s.votes[name];
+          return true;
+        }, `delete member: ${name}`);
+      }
+    };
+  });
+}
+
+// ---------- 입력 동작 ----------
+function addItem(kind) {
+  const input = document.getElementById(kind === 'restaurant' ? 'new-restaurant' : 'new-member');
+  const name = input.value.trim();
+  if (!name) return;
+  if (kind === 'restaurant') {
+    push(s => {
+      if (s.restaurants.includes(name)) return false;
+      s.restaurants.push(name);
+      return true;
+    }, `add restaurant: ${name}`);
+  } else {
+    push(s => {
+      if (s.members.includes(name)) return false;
+      s.members.push(name);
+      return true;
+    }, `add member: ${name}`);
+  }
+  input.value = '';
+  input.focus();
+}
+
+function editTitle() {
+  const current = state.title || '';
+  const next = prompt('새 제목을 입력하세요 (모두에게 적용됩니다)', current);
+  if (next === null) return;
+  const title = next.trim().slice(0, 60);
+  if (!title || title === current) return;
+  push(s => { s.title = title; return true; }, `title: ${title}`);
+}
+
+function resetVotes() {
+  if (!confirm('모든 투표를 초기화할까요? (식당·인원 목록은 유지됩니다)')) return;
+  push(s => { s.votes = {}; return true; }, 'reset votes');
+}
+
+document.getElementById('new-restaurant').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addItem('restaurant');
+});
+document.getElementById('new-member').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addItem('member');
+});
+
+// ---------- 시작 ----------
+loadConfig();
+if (config && config.token) {
+  fetchState(true).then(startApp).catch(e => showSetup(e.message));
+} else {
+  showSetup('');
+}
+</script>
+</body>
+</html>
